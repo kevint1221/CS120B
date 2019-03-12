@@ -5,7 +5,7 @@
 #define DATA (1 << PB5)           //MOSI (SI)
 #define LATCH (1 << PB4)          //SS   (RCK)
 #define CLOCK (1 << PB7)          //SCK  (SCK)
-
+#define touch ( 1 << PA5)
 unsigned char tempA = 0x00;
 unsigned char tempD = 0x00;
 
@@ -64,6 +64,7 @@ void set_register()
 enum led_states {led_init, wait, hold} led_state;
 void set_led()
 {
+	//tempA &= ~touch 
 	switch(led_state) //combine action and transition
 	{
 		case led_init:
