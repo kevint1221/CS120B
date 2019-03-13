@@ -1,20 +1,26 @@
+
 #include <avr/io.h>
+#include "timer.h"
+#include "io.c"
 
 #define SHIFT_REGISTER DDRB
 #define SHIFT_PORT PORTB
 #define DATA (1 << PB5)           //MOSI (SI)
 #define LATCH (1 << PB4)          //SS   (RCK)
 #define CLOCK (1 << PB7)          //SCK  (SCK)
+#define RED_LED (1 << PB0)
 #define touch ( 1 << PA5)
-unsigned char tempA = 0x00;
-unsigned char tempD = 0x00;
 
-unsigned char tempLED = 0x00;
+unsigned char tempA = 0x00; //PINA
+unsigned char tempD = 0x00; // PINB
+unsigned char tempLED = 0x00; //send to led
+unsigned char record = 0x00; //check if it is recording
+vector <unsigned char> sequence;  //use for recording
 
 void register_setup()
 {
-	SHIFT_REGISTER |= (DATA | LATCH | CLOCK ); //Set control pins as outputs
-	SHIFT_PORT &= ~(DATA | LATCH | CLOCK);        //Set control pins low
+	SHIFT_REGISTER |= (DATA | LATCH | CLOCK | RED_LED); //Set control pins as outputs, and red led
+	SHIFT_PORT &= ~(DATA | LATCH | CLOCK | RED_LED);        //Set control pins low, and red  led
 	
 	
 	//Setup SPI
@@ -64,7 +70,7 @@ void set_register()
 enum led_states {led_init, wait, hold} led_state;
 void set_led()
 {
-	//tempA &= ~touch 
+	tempA &= ~touch; //ignore touch snesor
 	switch(led_state) //combine action and transition
 	{
 		case led_init:
@@ -100,6 +106,7 @@ void set_led()
 		case hold:
 		if ( (tempA == 0x00) && (tempD == 0x00))
 		{
+			
 			tempLED = 0x00;
 			led_state = wait;
 		}
@@ -109,18 +116,45 @@ void set_led()
 	}
 }
 
+enum sensor_states {sensor_init, off, on} sensor_state;
+void set_sensor()
+{
+	switch(sensor_state)
+	{
+		case sensor_init:
+		sensor_state = off;
+		break;
+		case off:
+		break;
+		case on:
+		break;
+		
+	}
+	switch(sensor_state)
+	{
+		case sensor_init:
+		break;
+		case off:
+		break;
+		case on:
+		break;
+		
+	}
+}
+
 
 
 int main(void)
 {
 	//Setup IO
 	DDRD = 0xC0; PORTD = 0x3F; //for lcd D7D6, D4-D0 for button
-	DDRA = 0x00; PORTA  = 0xFF;
+	DDRA = 0x00; PORTA  = 0xFF; //A7 for output
 	register_setup();
 	//light_state = light_init;
 	//led_state = led_init;
 	while(1)
 	{
+		PORTB |= RED_LED; // MAKE red RECORD SHINE
 		//Loop forever
 		tempA = ~PINA;
 		tempD = ~PIND & 0x1F;
