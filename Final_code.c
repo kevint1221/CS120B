@@ -43,7 +43,7 @@ void register_setup()
 void set_register()
 {
 	//Shift in some data
-	SPDR =0x00;        //This should light alternating LEDs
+	SPDR =0xFF;        //This should light alternating LEDs
 	//SPDR = 0xAA;
 	//Wait for SPI process to finish
 	while(!(SPSR & (1<<SPIF)));
