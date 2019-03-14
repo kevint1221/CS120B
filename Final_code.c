@@ -46,7 +46,7 @@ unsigned char level2[5] = { 0x08, 0x01, 0x08, 0x10, 0x02 }; // 5 note						4 1 4
 unsigned char level3[7] = { 0x02, 0x10, 0x08, 0x10, 0x01, 0x04, 0x02 };// 7 note			2 5 4 5 1 3 2  
 unsigned char level4[5] = { 0x01, 0x10, 0x02, 0x04, 0x01 };// 5 note, faster				1 5 2 3 1 
 unsigned char level5[8] = { 0x10, 0x08, 0x04, 0x02, 0x04, 0x08, 0x02, 0x01 };// 8 note faster 5 4 3 2 3 4 2 1
-unsigned char level6[6] = { 0x10, 0x04, 0x01, 0x04, 0x01 , 0x04, 0x01, 0x04, 0x01, 0x04, 0x10 };
+unsigned char level6[11] = { 0x10, 0x04, 0x01, 0x04, 0x01 , 0x04, 0x01, 0x04, 0x01, 0x04, 0x10 };
 
 
 //speaker
@@ -192,6 +192,12 @@ void game_led()
 			tempLED = level5[play_counter];
 			play_counter++;
 		}
+		else if (level == 6)
+		{
+			change_time = 7; //change speed
+			tempLED = level6[play_counter];
+			play_counter++;
+		}
 		break;
 	default:
 		break;
@@ -201,7 +207,7 @@ void game_led()
 
 
 //game level up
-enum level_states { level_init, levelone, leveltwo, levelthree, levelfour, levelfive } level_state;
+enum level_states { level_init, levelone, leveltwo, levelthree, levelfour, levelfive, levelsix } level_state;
 void game_level()
 {
 	switch (level_state) //transition
@@ -280,6 +286,17 @@ void game_level()
 		}
 		break;
 	case levelfive:
+		if (level == 6)
+		{
+			play = 1;
+			level_state = levelsix;
+			play_level = 11;
+			p1.on = 0; //p2 go first
+			p2.on = 1;
+		}
+
+		break;
+	case levelsix:
 		if (mult == 1)
 		{
 			if (p1.score > p2.score)
@@ -517,6 +534,53 @@ void game_level()
 					{
 						p2.score += 1; //if p2 is correct
 					}
+					level = 6;
+					counter = 0;
+					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
+					correct = 1;
+				}
+			}
+			else if (press != 0x00 && mult == 0)
+			{
+				lose = 1;
+				reset();
+				//	PORTB = SetBit(PORTB, 1,1 );
+			}
+			else if (press != 0x00 && mult == 1)
+			{
+				if (p1.on == 1)
+				{
+					p1.on = 0; //p1 lose first round
+					play = 1; //play the music
+					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
+				}
+				else //p1 and p2 all lose, go to next level
+				{
+					level = 6;
+					counter = 0; //reset counter
+					correct = 1;//enable interrupt/////////////////////////////////
+					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
+				}
+			}
+		}
+		break;
+	case levelsix:
+		if (mark == 1 && GetBit(PORTB, 0) == 1)
+		{
+			mark = 0;
+			if (level6[counter] == press)
+			{
+				counter += 1;
+				if (counter == 11)
+				{
+					if (p1.on == 1) //if p1 is correct
+					{
+						p1.score += 2;
+					}
+					else
+					{
+						p2.score += 2; //if p2 is correct
+					}
 					win = 1;
 					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
 
@@ -531,9 +595,9 @@ void game_level()
 			}
 			else if (press != 0x00 && mult == 1)
 			{
-				if (p1.on == 1)
+				if (p2.on == 1)
 				{
-					p1.on = 0; //p1 lose first round
+					p2.on = 0; //p1 lose first round
 					play = 1; //play the music
 					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
 				}
@@ -1099,6 +1163,10 @@ void text()
 		{
 			leveling = "level 5";
 		}
+		else if (level == 6)
+		{
+			leveling = "level 6";
+		}
 	}
 	else
 	{
@@ -1157,7 +1225,17 @@ void text()
 				leveling = "level 4: player2";
 			}
 		}
-
+		else if (level == 6)
+		{
+			if (p2.on == 1)
+			{
+				leveling = "level 6: player2";
+			}
+			else
+			{
+				leveling = "level 6: player1";
+			}
+		}
 	}
 
 }
