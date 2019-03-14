@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 
+//define variable
 #define SHIFT_REGISTER DDRB
 #define SHIFT_PORT PORTB
 #define DATA (1 << PB5)           //MOSI (SI)
@@ -14,49 +15,61 @@
 #define RED_LED (1 << PB0)		  //red led
 #define TOUCH ( 1 << PA5)		  //touch sensor
 
+//input variable
 unsigned char tempA = 0x00; //PINA
 unsigned char tempD = 0x00; // PINB
+//output variable
 unsigned char tempLED = 0x00; //send to led
+//sensor
 int record = 0; //check if it is recording
+//button
 unsigned char press = 0x00; //what button was press
-unsigned char start_game = 0x00;
 unsigned char mark = 0x00; //when a button is press and release
+//game level
+unsigned char start_game = 0x00;
 int counter = 0; //check notes in the level
-int play_counter = 0; //counting for playing note
-int play_level = 0;// count how many note in the melody
 unsigned char level = 1;
 unsigned char win = 0;
 unsigned char lose = 0;
+unsigned long change_time = 10;
+unsigned char game_start = 0;
+unsigned char correct = 0;
+unsigned char wrong = 0;
+//songs
+int play_counter = 0; //counting for playing note
+int play_level = 0;// count how many note in the melody
 unsigned char play = 0;
 unsigned char level1[3] = { 0x01, 0x04,0x02 };// 3 note									1 3 2 
 unsigned char level2[5] = { 0x08, 0x01, 0x08, 0x10, 0x02 }; // 5 note						4 1 4 5 2
 unsigned char level3[7] = { 0x02, 0x10, 0x08, 0x10, 0x01, 0x04, 0x02 };// 7 note			2 5 4 5 1 3 2 
 unsigned char level4[5] = { 0x08, 0x04, 0x01, 0x02, 0x01 };// 5 note, faster				4 3 1 2 1 
 unsigned char level5[7] = { 0x01, 0x10, 0x04, 0x02, 0x08, 0x02, 0x01 };// 7 note faster	1 5 3 2 4 2 1 
-double correct[2] = { 1174.659, 987.767 };
-double winner[10] = { 329.628, 0.00,329.628,0.00,329.628,261.626, 293.665, 329.628, 293.665, 329.628 };
-unsigned long change_time = 10;
+//speaker
+double wrong_sound[4] = { 146.832, 0.00, 146.832, 0.00 };
+double correct_sound[4] = { 1174.659,0.00, 987.767, 0.00 };
+//						0      1    2      3     4       5     6       7          8       9          10      11
+double winner[16] = { 329.628, 0.00,329.628,0.00,329.628,0.00, 329.628, 261.626,0.00, 293.665, 0.00,329.628,0.00, 293.665,0.00, 329.628 };
 int speaker_count = 0;
-unsigned char game_start = 0;
-int k = 0;
-int play_sound; //don't interrupt 
+int j = 0; //counting pulse
+int interrupt = 0; //no interrupt
+//lcd_text
 unsigned char *begin_words;
 unsigned char i;
 unsigned char len;
-
-
-//light up led in game
+unsigned char *leveling; //size need to be n+1
+unsigned long lcd_period = 10; //use to change tick time
 
 
 void reset(); //prototype
 void speaker_counter();
 void win_sound();
-/////////////////speaker function//////////////////////////////////////////////////////////////////
 
-// 0.954 hz is lowest frequency possible with this function,
-// based on settings in PWM_on()
-// Passing in 0 as the frequency will stop the speaker from generating sound
+
+/////////////////speaker function//////////////////////////////////////////////////////////////////
 void set_PWM(double frequency) {
+	// 0.954 hz is lowest frequency possible with this function,
+	// based on settings in PWM_on()
+	// Passing in 0 as the frequency will stop the speaker from generating sound
 	static double current_frequency; // Keeps track of the currently set frequency
 	// Will only update the registers when the frequency changes, otherwise allows
 	// music to play uninterrupted.
@@ -78,7 +91,6 @@ void set_PWM(double frequency) {
 		current_frequency = frequency; // Updates the current frequency
 	}
 }
-
 void PWM_on() {
 	TCCR0A = (1 << COM0A0) | (1 << WGM00);
 	// COM3A0: Toggle PB3 on compare match between counter and OCR0A
@@ -87,14 +99,11 @@ void PWM_on() {
 	// CS01 & CS30: Set a prescaler of 64
 	set_PWM(0);
 }
-
 void PWM_off() {
 	TCCR0A = 0x00;
 	TCCR0B = 0x00;
 }
 ////////////////speaker function end//////////////////////////////////////////////////////////////
-
-
 
 //display/change in game led speed
 enum game_led_states { game_init, game_off, game_on } game_led_state;
@@ -106,7 +115,7 @@ void game_led()
 		game_led_state = game_off;
 		break;
 	case game_off:
-		if (play == 1)
+		if (play == 1 && interrupt == 0)
 		{
 			game_led_state = game_on;
 		}
@@ -177,13 +186,26 @@ void game_level()
 	case level_init:
 		if (level == 1 && start_game == 1)
 		{
-			level = 4;
+
+			/*
+			//testing skip level
+			level =5;
 			play = 1;
-			level_state = levelfour;				//testing
-			play_level = 5;
+			level_state = levelfive;				//testing
+			play_level = 7;
 			//level_state = levelone;
 			//play_level = 3;
 			start_game = 0;
+			*/
+
+			level = 1;
+			play = 1;
+			level_state = levelone;				//testing
+			play_level = 3;
+			//level_state = levelone;
+			//play_level = 3;
+			start_game = 0;
+
 		}
 		break;
 	case levelone:
@@ -243,7 +265,7 @@ void game_level()
 					level = 2;
 					counter = 0; //reset counter
 					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
-
+					correct = 1;
 
 				}
 			}
@@ -267,6 +289,7 @@ void game_level()
 					level = 3;
 					counter = 0;
 					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
+					correct = 1;
 				}
 			}
 			else if (press != 0x00)
@@ -288,6 +311,7 @@ void game_level()
 					level = 4;
 					counter = 0;
 					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
+					correct = 1;
 				}
 			}
 			else if (press != 0x00)
@@ -309,6 +333,7 @@ void game_level()
 					level = 5;
 					counter = 0; //reset counter
 					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
+					correct = 1;
 				}
 			}
 			else if (press != 0x00)
@@ -346,6 +371,7 @@ void game_level()
 
 }
 
+/*
 void testing()
 {
 	if (k == 0)
@@ -356,15 +382,15 @@ void testing()
 	{
 		tempLED = level1[1];
 	}
-	else if (k == 2)
+	else if ( k == 2)
 	{
 		tempLED = level1[2];
 	}
 
 	k++;
 
-
 }
+*/
 
 //set up register
 void register_setup()
@@ -460,6 +486,7 @@ void set_led()
 		}
 		else if (tempA == 0x40)
 		{
+			lcd_period = 1; //change lcd_period when enter game
 			level = 1;
 			game_led_state = game_init;
 			level_state = level_init;
@@ -576,30 +603,75 @@ void speaker_counter()
 	{
 		set_PWM(392.00);
 	}
-	else if (tempLED == 0x00 && win == 0)
+	else if (tempLED == 0x00 && win == 0 && correct == 0)
 	{
 		set_PWM(0.00);
 	}
+
+
 }
 
+//all sound
 void win_sound()
 {
 	if (win == 1)
 	{
-		if (speaker_count == 10)
+		if (speaker_count == 16)
 		{
 			win = 0;
+			speaker_count = 0;
 		}
 		else
 		{
+			if (speaker_count == 7)
+			{
+				if (j == 3)
+				{
+
+					set_PWM(winner[speaker_count]);
+					speaker_count++;
+					j = 0;
+				}
+				else
+				{
+					j++;
+				}
+			}
+
+			else
+			{
+				set_PWM(winner[speaker_count]);
+				speaker_count++;
+			}
+
 			PORTB = SetBit(PORTB, 1, 1);
-			set_PWM(winner[speaker_count]);
-			speaker_count++;
+
 		}
 
 
 	}
+
+	if (correct == 1)
+	{
+		if (speaker_count == 4)
+		{
+
+			speaker_count = 0;
+			correct = 0;
+			interrupt = 0;
+		}
+		else
+		{
+			interrupt = 1;
+			set_PWM(correct_sound[speaker_count]);
+			speaker_count++;
+		}
+	}
 }
+
+
+
+
 
 enum lcd_states { lcd_init, lcd_begin, lcd_on, lcd_single, lcd_two, lcd_lose, lcd_win } lcd_state;
 void lcd_game()
@@ -610,7 +682,12 @@ void lcd_game()
 		lcd_state = lcd_begin;
 		break;
 	case lcd_begin:
-
+		if (tempA == 0x40)
+		{
+			PORTB = SetBit(PORTB, 1, 1);
+			lcd_state = lcd_on;
+			LCD_ClearScreen();
+		}
 		break;
 	case lcd_on:
 		break;
@@ -636,6 +713,7 @@ void lcd_game()
 		else { begin_words -= len; i = 1; }
 		break;
 	case lcd_on:
+		LCD_DisplayString(1, leveling);
 
 		break;
 	case lcd_single:
@@ -651,6 +729,30 @@ void lcd_game()
 	}
 }
 
+//convert variable into lcd text
+void text()
+{
+	if (level == 1)
+	{
+		leveling = "level 1";
+	}
+	else if (level == 2)
+	{
+		leveling = "level 2";
+	}
+	else if (level == 3)
+	{
+		leveling = "level 3";
+	}
+	else if (level == 4)
+	{
+		leveling = "level 4";
+	}
+	else if (level == 5)
+	{
+		leveling = "level 5";
+	}
+}
 
 int main(void)
 {
@@ -686,14 +788,15 @@ int main(void)
 	begin_words = "         press reset to start the game";
 	i = 1;
 	len = strlen(begin_words);
-	////////////////////////////
+	//lcd variable end///////////
 
 	LCD_init();
 
-
 	while (1)
 	{
-		if (lcd_elapsed >= 10)
+		text();
+
+		if (lcd_elapsed >= lcd_period)
 		{
 			lcd_game();
 			lcd_elapsed = 0;
@@ -705,15 +808,16 @@ int main(void)
 		//Loop forever
 		tempA = ~PINA;
 		tempD = ~PIND & 0x1F;
-		if (win_elapsed >= 10)
-		{
-			win_sound();
-			win_elapsed = 0;
-		}
+
 		set_led();
 		set_register();
 		set_sensor();
 		game_level();
+		if (win_elapsed >= 4)
+		{
+			win_sound();
+			win_elapsed = 0;
+		}
 		if (game_led_elapsed >= change_time)
 		{
 			game_led();
