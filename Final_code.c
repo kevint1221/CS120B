@@ -604,8 +604,8 @@ void game_level()
 				else //p1 and p2 all lose, go to next level
 				{
 					counter = 0; //reset counter
-
-
+					win = 1;
+					PORTB = SetBit(PORTB, 0, 0); //set PB0 to 0
 				}
 			}
 		}
@@ -1218,11 +1218,11 @@ void text()
 		{
 			if (p1.on == 1)
 			{
-				leveling = "level 4: player1";
+				leveling = "level 5: player1";
 			}
 			else
 			{
-				leveling = "level 4: player2";
+				leveling = "level 5: player2";
 			}
 		}
 		else if (level == 6)
